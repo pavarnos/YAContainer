@@ -9,10 +9,5 @@ namespace LSS\YAContainer\Fixture;
 
 class V8Engine implements EngineInterface
 {
-    public $fuelPercent = 0;
-
-    public function refuel($percentage = 100)
-    {
-        $this->fuelPercent = $percentage;
-    }
+    use IgnitionListenerAwareTrait;
 }

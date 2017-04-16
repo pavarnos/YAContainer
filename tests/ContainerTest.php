@@ -15,6 +15,7 @@ use LSS\YAContainer\Fixture\CircularDependencyC;
 use LSS\YAContainer\Fixture\CircularDependencyInterface;
 use LSS\YAContainer\Fixture\ElectricEngine;
 use LSS\YAContainer\Fixture\EngineInterface;
+use LSS\YAContainer\Fixture\IgnitionListener;
 use LSS\YAContainer\Fixture\MissingArgument;
 use LSS\YAContainer\Fixture\MissingScalarArgument;
 use LSS\YAContainer\Fixture\PassengerTaxi;
@@ -135,19 +136,33 @@ class ContainerTest extends TestCase
         $subject->get(MissingScalarArgument::class);
     }
 
-//    public function testGetFromFactory()
-//    {
-//        $subject = new Container();
-//    }
-//
-//    public function testGetInjectInterface()
-//    {
-//        $subject = new Container();
-//    }
-//
-//    public function testGetAlias()
-//    {
-//        $subject = new Container();
-//    }
+    public function testGetFromFactory()
+    {
+        $fuelPercent = 75;
+        $subject     = new Container();
+        $subject->addFactory(Car::class, function (EngineInterface $engine) use ($fuelPercent) {
+            $result = new Car($engine);
+            $result->refuel($fuelPercent);
+            return $result;
+        });
+        // factory method can resolve aliases
+        $subject->addAlias(EngineInterface::class, ElectricEngine::class);
+        // factory method can inject on interfaces
+        $subject->inject(EngineInterface::class, 'setIgnitionListener');
 
+        $car      = $subject->get(Car::class);
+        $listener = $subject->get(IgnitionListener::class);
+        $this->assertTrue($listener === $car->getEngine()->getIgnitionListener());
+        $this->assertEquals($fuelPercent, $car->fuelPercent);
+    }
+
+    public function testGetInjectInterface()
+    {
+        $subject = new Container();
+        $subject->addAlias(EngineInterface::class, ElectricEngine::class);
+        $subject->inject(EngineInterface::class, 'setIgnitionListener');
+        $car      = $subject->get(Car::class);
+        $listener = $subject->get(IgnitionListener::class);
+        $this->assertTrue($listener === $car->getEngine()->getIgnitionListener());
+    }
 }

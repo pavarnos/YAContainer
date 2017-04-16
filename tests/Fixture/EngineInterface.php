@@ -9,5 +9,13 @@ namespace LSS\YAContainer\Fixture;
 
 interface EngineInterface
 {
-    public function refuel($percentage = 100);
+    /**
+     * @param \LSS\YAContainer\Fixture\IgnitionListener $listener
+     */
+    public function setIgnitionListener(IgnitionListener $listener): void;
+
+    /**
+     * @return \LSS\YAContainer\Fixture\IgnitionListener
+     */
+    public function getIgnitionListener(): IgnitionListener;
 }

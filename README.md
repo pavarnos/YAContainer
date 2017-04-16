@@ -25,9 +25,34 @@ The goals of this project are
 ## Features not available elsewhere 
 (that i could see)
 
+- Scalar injection (see below)
+- Setter injection by interface (see below)
+
+## Features considered but not implemented
+
+- Reflection Caching: there appears to be no performance gain from caching ReflectionClass. eg https://github.com/brainfoolong/php-reflection-performance-tests
+
+Pull requests welcome, but bear in mind the above project goals. If you have more complex needs, the other (better written, better supported, more mature) projects mentioned above will be a better choice for you.
+
+## How to use
+
+Create your container and pass in the scalar values and aliases to the constructor eg
+
+```php
+$aliases = [
+    MyFoo::class => MyCachedFoo::class,
+    MyBarInterface::class => MyBarImplementation::class
+];
+$container = new Container($_ENV,$aliases);
+```
+
+This is the quickest way to set up your container with static configuration.
+
+All generated objects are shared by default.
+
 ### Scalar injection
 
-Pass an `array_merge($_ENV, $myConfiguration)` to the container constructor and use those values as constructor or setter parameters.
+Scalar values (int,string,float,bool) can be used as constructor or setter parameters if the name matches _exactly_ (case sensitive) and a default value is not provided.
 
 ```php
 class DatabaseConnection extends \PDO {
@@ -43,16 +68,31 @@ class DatabaseConnection extends \PDO {
 $container = new Container(['databaseDSN' => 'mysql:host=localhost;dbname=theDBName', 'databaseUser' => 'theUserName', 'databasePassword' => 'thePassword']);
 $databaseConnection = $container->get(DatabaseConnection::class);
 ```
+
+You can also use `$container->addScalar()` to add more later if needed.
+
+If a default value is provided for a parameter, it will be respected. If you need to pass a different value, use a factory instead.
+
 ### Simple setter injection by interface
 
-eg `$container->inject(EventDispatcherAware::class, 'setEventDispatcher')` will inject the event dispatcher on every class 
+`$container->inject(EventDispatcherAware::class, 'setEventDispatcher')` will inject the event dispatcher on every class 
 implementing the interface. All parameters to the method will be autowired for the call.
 
-## Features considered but not implemented
+### Factory methods / Callables
 
-- Reflection Caching: there appears to be no performance gain from caching ReflectionClass. eg https://github.com/brainfoolong/php-reflection-performance-tests
+For classes that are complicated to build or where the class needs a lot of stuff that nothing else needs, use a factory method.
+ 
+ ```php
+ $fuelPercent = 75;
+ $container = new Container();
+ $container->addFactory(Car::class, function (EngineInterface $engine) use ($fuelPercent) {
+     $result = new Car($engine);
+     $result->refuel($fuelPercent);
+     return $result;
+ });
+```
 
-Pull requests welcome, but bear in mind the above project goals. If you have more complex needs, the other (better written, better supported, more mature) projects mentioned above will be a better choice for you.
+Any interfaces configured for setter injection will be called after the factory has run.
 
 ## PhpStorm integration
 
@@ -69,3 +109,8 @@ namespace PHPSTORM_META
 Anything returned by `->get('...')` is internally typehinted as an instance of the first argument. For example `->get('DateTime')` (or `->get(DateTime::class)`) will be recognized to return a `DateTime` object.
 
 **Note:** you may need to restart your IDE.
+
+## Ideas for later
+
+- Maybe add a `forget($name)` method to delete a shared instance from the container
+- or add a flag `sharedByDefault=true` or add a `sharable` array so the container knows which classes to keep and which to forget. 

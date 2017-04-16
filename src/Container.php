@@ -7,6 +7,7 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use function interface_exists;
 use function is_scalar;
@@ -30,6 +31,17 @@ class Container implements \Psr\Container\ContainerInterface
      * @var array name => value
      */
     private $scalar = [];
+
+    /**
+     * call the interface method if the class implements it
+     * @var array interface name => method name
+     */
+    private $inject = [];
+
+    /**
+     * @var array class or interface name => callable
+     */
+    private $factory = [];
 
     /**
      * @var array a stack of class name => depth for error reporting and to prevent circular dependencies
@@ -73,7 +85,12 @@ class Container implements \Psr\Container\ContainerInterface
         }
         $this->building[$name] = count($this->building);
 
-        $result = $this->makeClass($name);
+        if (isset($this->factory[$name])) {
+            $result = $this->runFactory($this->factory[$name]);
+        } else {
+            $result = $this->makeClass($name);
+        }
+        $result = $this->injectSetters($result);
 
         $this->shared[$name] = $result;
         unset($this->building[$name]);
@@ -115,12 +132,38 @@ class Container implements \Psr\Container\ContainerInterface
      * Scalars values are used when the constructor / function parameter has no class type hint and is a scalar value
      * @param string                $name
      * @param int|string|float|bool $value
-     * @return \LSS\YAContainer\Container
+     * @return self
      */
     public function addScalar(string $name, $value): self
     {
         assert(is_scalar($value));
         $this->scalar[$name] = $value;
+        return $this;
+    }
+
+    /**
+     * if a class is complicated to build, use a factory method to build it and return the class instance.
+     * Injections performed by inject() will still occur: no need to add these to your factory
+     * @param string   $name
+     * @param callable $callable must return a class instance
+     * @return \LSS\YAContainer\Container
+     */
+    public function addFactory(string $name, callable $callable): self
+    {
+        $this->factory[$name] = $callable;
+        return $this;
+    }
+
+    /**
+     * after a class is built, it it implements $interfaceName, call $methodName.
+     * Type hinted and scalar method parameters will be resolved before the call.
+     * @param string $interfaceName
+     * @param string $methodName
+     * @return self
+     */
+    public function inject(string $interfaceName, string $methodName): self
+    {
+        $this->inject[$interfaceName] = $methodName;
         return $this;
     }
 
@@ -183,5 +226,36 @@ class Container implements \Psr\Container\ContainerInterface
             $result[] = $this->get($typeHint->getName());
         }
         return $result;
+    }
+
+    /**
+     * setter injection by interface
+     * @param object $result
+     * @return object
+     */
+    private function injectSetters($result)
+    {
+        // reflectionClass may be instantiated twice for each object, which is a bit ugly...
+        $classInfo = new ReflectionClass($result);
+        foreach ($this->inject as $interfaceName => $methodName) {
+            if (!$classInfo->implementsInterface($interfaceName)) {
+                continue;
+            }
+            $methodInfo = $classInfo->getMethod($methodName);
+            $arguments = $this->collectArguments($methodInfo);
+            $result->$methodName(...$arguments);
+        }
+        return $result;
+    }
+
+    /**
+     * @param callable $function
+     * @return object
+     */
+    private function runFactory(callable $function)
+    {
+        $functionInfo = new ReflectionFunction($function);
+        $arguments = $this->collectArguments($functionInfo);
+        return $function(...$arguments);
     }
 }
