@@ -1,0 +1,40 @@
+{
+    "name": "lss/yacontainer",
+    "description": "PSR11 Dependency Injection Container",
+    "homepage": "https://github.com/pavarnos/YAContainer",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Steve Pavarno",
+            "email": "pavarnos@gmail.com"
+        }
+    ],
+    "require": {
+        "php" : "~7.1",
+        "psr/container": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^6.1",
+        "pds/skeleton": "^1.0",
+        "squizlabs/php_codesniffer": "^2.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "LSS\\YAContainer\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "LSS\\YAContainer\\": "tests"
+        }
+    },
+    "provide": {
+        "psr/container": "1.0"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "check-style": "phpcs -p --standard=PSR2 --runtime-set ignore_errors_on_exit 1 --runtime-set ignore_warnings_on_exit 1 src tests",
+        "fix-style": "phpcbf -p --standard=PSR2 --runtime-set ignore_errors_on_exit 1 --runtime-set ignore_warnings_on_exit 1 src tests"
+    }
+}

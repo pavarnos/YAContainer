@@ -1,0 +1,14 @@
+
+
+Code Coverage Report:     
+  2017-04-16 22:52:33     
+                          
+ Summary:                 
+  Classes: 100.00% (2/2)  
+  Methods: 100.00% (8/8)  
+  Lines:   100.00% (49/49)
+
+\LSS\YAContainer::Container
+  Methods: 100.00% ( 7/ 7)   Lines: 100.00% ( 45/ 45)
+\LSS\YAContainer::ContainerException
+  Methods: 100.00% ( 1/ 1)   Lines: 100.00% (  4/  4)
