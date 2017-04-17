@@ -1,6 +1,11 @@
 {
     "name": "lss/yacontainer",
-    "description": "PSR11 Dependency Injection Container",
+    "description": "Lightweight PSR11 Dependency Injection Container",
+    "keywords": [
+        "psr-11",
+        "container",
+        "dependency injection"
+    ],
     "homepage": "https://github.com/pavarnos/YAContainer",
     "type": "library",
     "license": "MIT",
@@ -11,7 +16,7 @@
         }
     ],
     "require": {
-        "php" : "~7.1",
+        "php": "~7.1",
         "psr/container": "^1.0"
     },
     "require-dev": {
