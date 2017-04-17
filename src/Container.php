@@ -39,6 +39,7 @@ class Container implements \Psr\Container\ContainerInterface
     private $inject = [];
 
     /**
+     * a callable that can build this class
      * @var array class or interface name => callable
      */
     private $factory = [];
@@ -72,7 +73,7 @@ class Container implements \Psr\Container\ContainerInterface
     public function get($name)
     {
         if (isset($this->alias[$name])) {
-            // resolve aliases
+            // resolve aliases. Aliases must resolve directly to a concrete class. Recursive resolution does not work
             $name = $this->alias[$name];
         }
         if (isset($this->shared[$name])) {
@@ -110,7 +111,7 @@ class Container implements \Psr\Container\ContainerInterface
      */
     public function has($name)
     {
-        return class_exists($name) || interface_exists($name) || isset($this->alias[$name]) || isset($this->scalar[$name]);
+        return class_exists($name) || interface_exists($name) || isset($this->alias[$name]) || isset($this->scalar[$name]) || isset($this->factory[$name]);
     }
 
     /**
