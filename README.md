@@ -76,12 +76,30 @@ $databaseConnection = $container->get(DatabaseConnection::class);
 
 You can also use `$container->addScalar()` to add more later if needed.
 
-If a default value is provided for a parameter, it will be respected. If you need to pass a different value, use a factory instead.
+If a default value is provided for a constructor parameter, it will be respected and the scalar value will not be injected. 
+If you need to pass a different value, use a factory instead.
 
-## Simple setter injection by interface
+You can also use a callable for a scalar value. The callable will be called only once then replaced with its value for 
+all subsequent uses.
+```php
+$container->addScalar('maximumPassengers', function (Configuration $config) {
+    return $config->getMaximumPassengers();
+});
+```
+
+## Setter injection by interface
 
 `$container->inject(EventDispatcherAware::class, 'setEventDispatcher')` will inject the event dispatcher on every class 
 implementing the interface. All parameters to the method will be autowired for the call.
+
+You can also use a callable. Specify the class you are constructing as one of the parameters. It will already be
+stored in the container before your injector is executed, so type hinting will work as expected.
+
+```php
+$container->inject(SetCurrentUserInterface::class, function (SystemLogger $logger, Session $session) {
+    $logger->setCurrentUser($session->getCurrentUser());
+});
+```
 
 ## Factory methods / Callables
 

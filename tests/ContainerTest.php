@@ -113,12 +113,19 @@ class ContainerTest extends TestCase
     public function testGetWithScalarArguments()
     {
         $subject = new Container(
-            ['roadSpeedLimit'    => $roadSpeedLimit = 100,
-             'maximumPassengers' => $maximumPassengers = 4],
+            ['roadSpeedLimit'    => $roadSpeedLimit = 100],
             [EngineInterface::class => ElectricEngine::class]
         );
         // can add scalars in the constructor or afterwards with addScalar()
         $subject->addScalar('roadSpeedUnit', $roadSpeedUnit = 'km/h');
+
+        // scalar can be a callable and can take all usual parameters including other scalars
+        $callCount = 0;
+        $maximumPassengers = 4;
+        $subject->addScalar('maximumPassengers', function ($roadSpeedLimit) use (&$callCount, $maximumPassengers) {
+            $this->assertEquals(100, $roadSpeedLimit);
+            return $maximumPassengers;
+        });
 
         $taxi = $subject->get(PassengerTaxi::class);
         $this->assertEquals($roadSpeedLimit, $taxi->roadSpeedLimit);
@@ -164,5 +171,32 @@ class ContainerTest extends TestCase
         $car      = $subject->get(Car::class);
         $listener = $subject->get(IgnitionListener::class);
         $this->assertTrue($listener === $car->getEngine()->getIgnitionListener());
+    }
+
+    public function testGetInjectCallable()
+    {
+        $count   = 0;
+        $subject = new Container();
+        $subject->addAlias(EngineInterface::class, ElectricEngine::class);
+        $subject->inject(EngineInterface::class, function (EngineInterface $engine, IgnitionListener $listener) use (&$count) {
+            $count++;
+            $this->assertTrue($listener instanceof IgnitionListener);
+            $engine->setIgnitionListener($listener);
+            return $engine;
+        });
+        $car = $subject->get(Car::class);
+        $listener = $subject->get(IgnitionListener::class);
+        $this->assertTrue($listener === $car->getEngine()->getIgnitionListener());
+        $this->assertEquals(1, $count);
+    }
+
+    public function testGetInjectInvalid()
+    {
+        $this->expectException(ContainerException::class);
+        $this->expectExceptionMessage('Expected interface method name or callable when injecting');
+        $subject = new Container();
+        $subject->addAlias(EngineInterface::class, ElectricEngine::class);
+        $subject->inject(EngineInterface::class, 123);
+        $car      = $subject->get(Car::class);
     }
 }

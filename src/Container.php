@@ -10,6 +10,7 @@ use ReflectionException;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use function interface_exists;
+use function is_callable;
 use function is_scalar;
 
 class Container implements \Psr\Container\ContainerInterface
@@ -34,7 +35,7 @@ class Container implements \Psr\Container\ContainerInterface
 
     /**
      * call the interface method if the class implements it
-     * @var array interface name => method name
+     * @var array interface name => method name or callable
      */
     private $inject = [];
 
@@ -82,18 +83,21 @@ class Container implements \Psr\Container\ContainerInterface
 
         // circular dependency check
         if (isset($this->building[$name])) {
-            throw new ContainerException($this->building, 'Circular dependency while building ' . $name);
+            throw new ContainerException($this->building,
+                'Circular dependency while building ' . $name . ': ' . join(' - ', array_keys($this->building)));
         }
         $this->building[$name] = count($this->building);
 
         if (isset($this->factory[$name])) {
             $result = $this->runFactory($this->factory[$name]);
-        } else {
+        }
+        else {
             $result = $this->makeClass($name);
         }
-        $result = $this->injectSetters($result);
 
         $this->shared[$name] = $result;
+        $this->injectSetters($result);
+
         unset($this->building[$name]);
         return $result;
     }
@@ -130,15 +134,16 @@ class Container implements \Psr\Container\ContainerInterface
     }
 
     /**
-     * Scalars values are used when the constructor / function parameter has no class type hint and is a scalar value
-     * @param string                $name
-     * @param int|string|float|bool $value
+     * Scalars values are used when the constructor / function parameter has no class type hint and is a scalar value.
+     * If a callable, it will be called only once then replaced with its return value.
+     * @param string                         $name
+     * @param int|string|float|bool|callable $valueOrCallable
      * @return self
      */
-    public function addScalar(string $name, $value): self
+    public function addScalar(string $name, $valueOrCallable): self
     {
-        assert(is_scalar($value));
-        $this->scalar[$name] = $value;
+        assert(is_scalar($valueOrCallable) || is_callable($valueOrCallable));
+        $this->scalar[$name] = $valueOrCallable;
         return $this;
     }
 
@@ -158,13 +163,14 @@ class Container implements \Psr\Container\ContainerInterface
     /**
      * after a class is built, it it implements $interfaceName, call $methodName.
      * Type hinted and scalar method parameters will be resolved before the call.
-     * @param string $interfaceName
-     * @param string $methodName
+     * If a callable is used, the newly created object will be the first parameter
+     * @param string            $interfaceName
+     * @param string | callable $methodNameOrCallable
      * @return self
      */
-    public function inject(string $interfaceName, string $methodName): self
+    public function inject(string $interfaceName, $methodNameOrCallable): self
     {
-        $this->inject[$interfaceName] = $methodName;
+        $this->inject[$interfaceName] = $methodNameOrCallable;
         return $this;
     }
 
@@ -215,12 +221,7 @@ class Container implements \Psr\Container\ContainerInterface
             }
             $typeInfo = $parameterInfo->getType();
             if (empty($typeInfo) || $typeInfo->isBuiltin()) {
-                // handle scalar
-                $parameterName = $parameterInfo->getName();
-                if (!isset($this->scalar[$parameterName])) {
-                    throw new ContainerException($this->building, 'Scalar value not found: ' . $parameterName);
-                }
-                $result[] = $this->scalar[$parameterName];
+                $result[] = $this->getScalarValue($parameterInfo->getName());
                 continue;
             }
             $typeHint = $parameterInfo->getClass();
@@ -230,23 +231,37 @@ class Container implements \Psr\Container\ContainerInterface
     }
 
     /**
-     * setter injection by interface
+     * setter injection by interface to call method name or callable
      * @param object $result
-     * @return object
+     * @throws \LSS\YAContainer\ContainerException
      */
     private function injectSetters($result)
     {
+        if (empty($this->inject)) {
+            return;
+        }
+
         // reflectionClass may be instantiated twice for each object, which is a bit ugly...
         $classInfo = new ReflectionClass($result);
-        foreach ($this->inject as $interfaceName => $methodName) {
+        foreach ($this->inject as $interfaceName => $methodNameOrCallable) {
             if (!$classInfo->implementsInterface($interfaceName)) {
                 continue;
             }
-            $methodInfo = $classInfo->getMethod($methodName);
-            $arguments = $this->collectArguments($methodInfo);
-            $result->$methodName(...$arguments);
+            if (is_string($methodNameOrCallable)) {
+                $methodInfo = $classInfo->getMethod($methodNameOrCallable);
+                $arguments  = $this->collectArguments($methodInfo);
+                $result->$methodNameOrCallable(...$arguments);
+                continue;
+            }
+            if (is_callable($methodNameOrCallable)) {
+                $functionInfo = new ReflectionFunction($methodNameOrCallable);
+                $arguments    = $this->collectArguments($functionInfo);
+                $result       = $methodNameOrCallable(...$arguments);
+                continue;
+            }
+            throw new ContainerException($this->building,
+                'Expected interface method name or callable when injecting ' . $classInfo->getName());
         }
-        return $result;
     }
 
     /**
@@ -256,7 +271,27 @@ class Container implements \Psr\Container\ContainerInterface
     private function runFactory(callable $function)
     {
         $functionInfo = new ReflectionFunction($function);
-        $arguments = $this->collectArguments($functionInfo);
+        $arguments    = $this->collectArguments($functionInfo);
         return $function(...$arguments);
+    }
+
+    /**
+     * @param string $name
+     * @return mixed
+     * @throws \LSS\YAContainer\ContainerException
+     */
+    private function getScalarValue($name)
+    {
+        if (!isset($this->scalar[$name])) {
+            throw new ContainerException($this->building, 'Scalar value not found: ' . $name);
+        }
+        $value = $this->scalar[$name];
+        if (is_callable(($value))) {
+            $functionInfo        = new ReflectionFunction($value);
+            $arguments           = $this->collectArguments($functionInfo);
+            $value               = $value(...$arguments);
+            $this->scalar[$name] = $value;
+        }
+        return $value;
     }
 }
