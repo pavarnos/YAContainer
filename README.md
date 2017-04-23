@@ -92,12 +92,12 @@ $container->addScalar('maximumPassengers', function (Configuration $config) {
 `$container->inject(EventDispatcherAware::class, 'setEventDispatcher')` will inject the event dispatcher on every class 
 implementing the interface. All parameters to the method will be autowired for the call.
 
-You can also use a callable. Specify the class you are constructing as one of the parameters. It will already be
-stored in the container before your injector is executed, so type hinting will work as expected.
+You can also use a callable. Specify the class you are constructing as the first parameter. It will already be
+stored in the container before your injector is executed.
 
 ```php
-$container->inject(SetCurrentUserInterface::class, function (SystemLogger $logger, Session $session) {
-    $logger->setCurrentUser($session->getCurrentUser());
+$container->inject(SetCurrentUserInterface::class, function (CurrentUserInterface $objectBeingBuilt, Session $session) {
+    $objectBeingBuilt->setCurrentUser($session->getCurrentUser());
 });
 ```
 

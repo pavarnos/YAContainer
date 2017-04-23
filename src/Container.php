@@ -8,7 +8,7 @@ use Psr\Container\NotFoundExceptionInterface;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
-use ReflectionFunctionAbstract;
+use function array_unshift;
 use function interface_exists;
 use function is_callable;
 use function is_scalar;
@@ -103,6 +103,16 @@ class Container implements \Psr\Container\ContainerInterface
     }
 
     /**
+     * inject a pre-built class into the container, or replace an existing value (eg for tests)
+     * @param string $name
+     * @param mixed $classInstance
+     */
+    public function set(string $name, $classInstance): void
+    {
+        $this->shared[$name] = $classInstance;
+    }
+
+    /**
      * Returns true if the container can return an entry for the given identifier.
      * Returns false otherwise.
      *
@@ -194,7 +204,7 @@ class Container implements \Psr\Container\ContainerInterface
                 return new $name();
             }
 
-            $arguments = $this->collectArguments($constructorInfo);
+            $arguments = $this->collectArguments($constructorInfo->getParameters());
             // It is faster to call it directly than to use reflection http://stackoverflow.com/a/24648651/117647
             return new $name(...$arguments);
 
@@ -206,14 +216,14 @@ class Container implements \Psr\Container\ContainerInterface
 
     /**
      * resolve all the arguments for the method and return them
-     * @param \ReflectionFunctionAbstract $functionInfo
+     * @param \ReflectionParameter[] $parameters
      * @return array
      * @throws \LSS\YAContainer\ContainerException
      */
-    private function collectArguments(ReflectionFunctionAbstract $functionInfo): array
+    private function collectArguments($parameters): array
     {
         $result = [];
-        foreach ($functionInfo->getParameters() as $parameterInfo) {
+        foreach ($parameters as $parameterInfo) {
             // resolve the argument to a value
             if ($parameterInfo->isOptional()) {
                 // accept default values for all arguments because all subsequent arguments must also have a default value
@@ -249,14 +259,18 @@ class Container implements \Psr\Container\ContainerInterface
             }
             if (is_string($methodNameOrCallable)) {
                 $methodInfo = $classInfo->getMethod($methodNameOrCallable);
-                $arguments  = $this->collectArguments($methodInfo);
+                $arguments  = $this->collectArguments($methodInfo->getParameters());
                 $result->$methodNameOrCallable(...$arguments);
                 continue;
             }
             if (is_callable($methodNameOrCallable)) {
                 $functionInfo = new ReflectionFunction($methodNameOrCallable);
-                $arguments    = $this->collectArguments($functionInfo);
-                $result       = $methodNameOrCallable(...$arguments);
+                $parameters   = $functionInfo->getParameters();
+                // put the built object as the first parameter
+                array_shift($parameters);
+                $arguments = $this->collectArguments($parameters);
+                array_unshift($arguments, $result);
+                $methodNameOrCallable(...$arguments);
                 continue;
             }
             throw new ContainerException($this->building,
@@ -271,7 +285,7 @@ class Container implements \Psr\Container\ContainerInterface
     private function runFactory(callable $function)
     {
         $functionInfo = new ReflectionFunction($function);
-        $arguments    = $this->collectArguments($functionInfo);
+        $arguments    = $this->collectArguments($functionInfo->getParameters());
         return $function(...$arguments);
     }
 
@@ -288,7 +302,7 @@ class Container implements \Psr\Container\ContainerInterface
         $value = $this->scalar[$name];
         if (is_callable(($value))) {
             $functionInfo        = new ReflectionFunction($value);
-            $arguments           = $this->collectArguments($functionInfo);
+            $arguments           = $this->collectArguments($functionInfo->getParameters());
             $value               = $value(...$arguments);
             $this->scalar[$name] = $value;
         }

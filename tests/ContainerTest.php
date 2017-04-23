@@ -110,6 +110,14 @@ class ContainerTest extends TestCase
         $this->assertFalse($subject->has('NonExistentClass'));
     }
 
+    public function testSet()
+    {
+        $subject = new Container();
+        $engine = new ElectricEngine();
+        $subject->set(ElectricEngine::class, $engine);
+        $this->assertTrue($engine === $subject->get(ElectricEngine::class), 'should be same instance');
+    }
+
     public function testGetWithScalarArguments()
     {
         $subject = new Container(
