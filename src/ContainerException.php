@@ -7,10 +7,11 @@ class ContainerException extends \Exception implements \Psr\Container\ContainerE
 {
     public $dependencyChain = [];
 
-    public function __construct(array $building, $message = "", $code = 0, \Exception $previous = null)
+    public function __construct(array $building, $message = '', $code = 0, \Exception $previous = null)
     {
         $this->dependencyChain = array_flip($building);
         ksort($this->dependencyChain);
+        $message .= ': while building ' . implode(' - ', $this->dependencyChain);
 
         parent::__construct($message, $code, $previous);
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace LSS\YAContainer;
 
 use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use ReflectionClass;
 use ReflectionException;
@@ -13,7 +14,7 @@ use function interface_exists;
 use function is_callable;
 use function is_scalar;
 
-class Container implements \Psr\Container\ContainerInterface
+class Container implements ContainerInterface
 {
     /**
      * All classes are shared by default
@@ -70,6 +71,7 @@ class Container implements \Psr\Container\ContainerInterface
      * @throws ContainerExceptionInterface Error while retrieving the entry.
      *
      * @return mixed Entry.
+     * @throws \LSS\YAContainer\ContainerException
      */
     public function get($name)
     {
@@ -83,15 +85,13 @@ class Container implements \Psr\Container\ContainerInterface
 
         // circular dependency check
         if (isset($this->building[$name])) {
-            throw new ContainerException($this->building,
-                'Circular dependency while building ' . $name . ': ' . join(' - ', array_keys($this->building)));
+            throw new ContainerException($this->building, 'Circular dependency while building ' . $name);
         }
         $this->building[$name] = count($this->building);
 
         if (isset($this->factory[$name])) {
             $result = $this->runFactory($this->factory[$name]);
-        }
-        else {
+        } else {
             $result = $this->makeClass($name);
         }
 
@@ -105,7 +105,7 @@ class Container implements \Psr\Container\ContainerInterface
     /**
      * inject a pre-built class into the container, or replace an existing value (eg for tests)
      * @param string $name
-     * @param mixed $classInstance
+     * @param mixed  $classInstance
      */
     public function set(string $name, $classInstance): void
     {
