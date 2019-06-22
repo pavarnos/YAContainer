@@ -9,7 +9,6 @@ use Psr\Container\NotFoundExceptionInterface;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
-use function array_unshift;
 use function interface_exists;
 use function is_callable;
 use function is_scalar;
@@ -35,12 +34,6 @@ class Container implements ContainerInterface
     private $scalar = [];
 
     /**
-     * call the interface method if the class implements it
-     * @var array interface name => method name or callable
-     */
-    private $inject = [];
-
-    /**
      * a callable that can build this class
      * @var array class or interface name => callable
      */
@@ -52,7 +45,6 @@ class Container implements ContainerInterface
     private $building = [];
 
     /**
-     * Container constructor.
      * @param array $scalar see addScalar()
      * @param array $alias  see addAlias()
      */
@@ -96,7 +88,6 @@ class Container implements ContainerInterface
         }
 
         $this->shared[$name] = $result;
-        $this->injectSetters($result);
 
         unset($this->building[$name]);
         return $result;
@@ -171,20 +162,6 @@ class Container implements ContainerInterface
     }
 
     /**
-     * after a class is built, it it implements $interfaceName, call $methodName.
-     * Type hinted and scalar method parameters will be resolved before the call.
-     * If a callable is used, the newly created object will be the first parameter
-     * @param string            $interfaceName
-     * @param string | callable $methodNameOrCallable
-     * @return self
-     */
-    public function inject(string $interfaceName, $methodNameOrCallable): self
-    {
-        $this->inject[$interfaceName] = $methodNameOrCallable;
-        return $this;
-    }
-
-    /**
      * @param string $name
      * @return mixed the built class
      * @throws \LSS\YAContainer\ContainerException
@@ -220,7 +197,7 @@ class Container implements ContainerInterface
      * @return array
      * @throws \LSS\YAContainer\ContainerException
      */
-    private function collectArguments($parameters): array
+    private function collectArguments(array $parameters): array
     {
         $result = [];
         foreach ($parameters as $parameterInfo) {
@@ -241,44 +218,6 @@ class Container implements ContainerInterface
     }
 
     /**
-     * setter injection by interface to call method name or callable
-     * @param object $result
-     * @throws \LSS\YAContainer\ContainerException
-     */
-    private function injectSetters($result)
-    {
-        if (empty($this->inject)) {
-            return;
-        }
-
-        // reflectionClass may be instantiated twice for each object, which is a bit ugly...
-        $classInfo = new ReflectionClass($result);
-        foreach ($this->inject as $interfaceName => $methodNameOrCallable) {
-            if (!$classInfo->implementsInterface($interfaceName)) {
-                continue;
-            }
-            if (is_string($methodNameOrCallable)) {
-                $methodInfo = $classInfo->getMethod($methodNameOrCallable);
-                $arguments  = $this->collectArguments($methodInfo->getParameters());
-                $result->$methodNameOrCallable(...$arguments);
-                continue;
-            }
-            if (is_callable($methodNameOrCallable)) {
-                $functionInfo = new ReflectionFunction($methodNameOrCallable);
-                $parameters   = $functionInfo->getParameters();
-                // put the built object as the first parameter
-                array_shift($parameters);
-                $arguments = $this->collectArguments($parameters);
-                array_unshift($arguments, $result);
-                $methodNameOrCallable(...$arguments);
-                continue;
-            }
-            throw new ContainerException($this->building,
-                'Expected interface method name or callable when injecting ' . $classInfo->getName());
-        }
-    }
-
-    /**
      * @param callable $function
      * @return object
      */
@@ -294,7 +233,7 @@ class Container implements ContainerInterface
      * @return mixed
      * @throws \LSS\YAContainer\ContainerException
      */
-    private function getScalarValue($name)
+    private function getScalarValue(string $name)
     {
         if (!isset($this->scalar[$name])) {
             throw new ContainerException($this->building, 'Scalar value not found: ' . $name);

@@ -15,7 +15,6 @@ use LSS\YAContainer\Fixture\CircularDependencyC;
 use LSS\YAContainer\Fixture\CircularDependencyInterface;
 use LSS\YAContainer\Fixture\ElectricEngine;
 use LSS\YAContainer\Fixture\EngineInterface;
-use LSS\YAContainer\Fixture\IgnitionListener;
 use LSS\YAContainer\Fixture\MissingArgument;
 use LSS\YAContainer\Fixture\MissingScalarArgument;
 use LSS\YAContainer\Fixture\PassengerTaxi;
@@ -28,7 +27,7 @@ class ContainerTest extends TestCase
     public function testGetNoConstructor()
     {
         $subject = new Container();
-        $this->assertTrue($subject->get(V8Engine::class) instanceof V8Engine);
+        self::assertTrue($subject->get(V8Engine::class) instanceof V8Engine);
     }
 
     public function testGetWithMissingArgument()
@@ -59,7 +58,7 @@ class ContainerTest extends TestCase
     {
         $subject = new Container();
         $subject->addAlias(EngineInterface::class, V8Engine::class);
-        $this->assertTrue($subject->get(Car::class) instanceof Car);
+        self::assertTrue($subject->get(Car::class) instanceof Car);
     }
 
     public function testGetShared()
@@ -67,9 +66,9 @@ class ContainerTest extends TestCase
         $subject = new Container();
         $subject->addAlias(EngineInterface::class, V8Engine::class);
         $car = $subject->get(Car::class);
-        $this->assertTrue($car instanceof Car);
-        $this->assertTrue($car === $subject->get(Car::class),
-            'should return exact same instance if it was built already');
+        self::assertTrue($car instanceof Car);
+        self::assertTrue($car === $subject->get(Car::class),
+                          'should return exact same instance if it was built already');
     }
 
     /**
@@ -101,46 +100,47 @@ class ContainerTest extends TestCase
     {
         $subject = new Container();
         // can (potentially) make any class that exists
-        $this->assertTrue($subject->has(Car::class));
-        $this->assertTrue($subject->has(EngineInterface::class));
-        $this->assertTrue($subject->has(MissingArgument::class));
+        self::assertTrue($subject->has(Car::class));
+        self::assertTrue($subject->has(EngineInterface::class));
+        self::assertTrue($subject->has(MissingArgument::class));
 
         // but not random strings or non existent classes
-        $this->assertFalse($subject->has('Foo Bar'));
-        $this->assertFalse($subject->has('NonExistentClass'));
+        self::assertFalse($subject->has('Foo Bar'));
+        self::assertFalse($subject->has('NonExistentClass'));
     }
 
     public function testSet()
     {
         $subject = new Container();
-        $engine = new ElectricEngine();
+        $engine  = new ElectricEngine();
         $subject->set(ElectricEngine::class, $engine);
-        $this->assertTrue($engine === $subject->get(ElectricEngine::class), 'should be same instance');
+        self::assertTrue($engine === $subject->get(ElectricEngine::class), 'should be same instance');
     }
 
     public function testGetWithScalarArguments()
     {
         $subject = new Container(
-            ['roadSpeedLimit'    => $roadSpeedLimit = 100],
+            ['roadSpeedLimit' => $roadSpeedLimit = 100],
             [EngineInterface::class => ElectricEngine::class]
         );
         // can add scalars in the constructor or afterwards with addScalar()
         $subject->addScalar('roadSpeedUnit', $roadSpeedUnit = 'km/h');
 
         // scalar can be a callable and can take all usual parameters including other scalars
-        $callCount = 0;
+        $callCount         = 0;
         $maximumPassengers = 4;
         $subject->addScalar('maximumPassengers', function ($roadSpeedLimit) use (&$callCount, $maximumPassengers) {
-            $this->assertEquals(100, $roadSpeedLimit);
+            self::assertEquals(100, $roadSpeedLimit);
             return $maximumPassengers;
         });
 
         $taxi = $subject->get(PassengerTaxi::class);
-        $this->assertEquals($roadSpeedLimit, $taxi->roadSpeedLimit);
-        $this->assertEquals($roadSpeedUnit, $taxi->roadSpeedUnit);
-        $this->assertEquals($maximumPassengers, $taxi->maximumPassengers);
-        $this->assertEquals(PassengerTaxi::DEFAULT_SEATS, $taxi->numberOfSeats);
-        $this->assertTrue($taxi->engine instanceof ElectricEngine);
+        self::assertEquals(1, $callCount);
+        self::assertEquals($roadSpeedLimit, $taxi->roadSpeedLimit);
+        self::assertEquals($roadSpeedUnit, $taxi->roadSpeedUnit);
+        self::assertEquals($maximumPassengers, $taxi->maximumPassengers);
+        self::assertEquals(PassengerTaxi::DEFAULT_SEATS, $taxi->numberOfSeats);
+        self::assertTrue($taxi->engine instanceof ElectricEngine);
     }
 
     public function testGetWithUnknownScalar()
@@ -162,49 +162,8 @@ class ContainerTest extends TestCase
         });
         // factory method can resolve aliases
         $subject->addAlias(EngineInterface::class, ElectricEngine::class);
-        // factory method can inject on interfaces
-        $subject->inject(EngineInterface::class, 'setIgnitionListener');
 
-        $car      = $subject->get(Car::class);
-        $listener = $subject->get(IgnitionListener::class);
-        $this->assertTrue($listener === $car->getEngine()->getIgnitionListener());
-        $this->assertEquals($fuelPercent, $car->fuelPercent);
-    }
-
-    public function testGetInjectInterface()
-    {
-        $subject = new Container();
-        $subject->addAlias(EngineInterface::class, ElectricEngine::class);
-        $subject->inject(EngineInterface::class, 'setIgnitionListener');
-        $car      = $subject->get(Car::class);
-        $listener = $subject->get(IgnitionListener::class);
-        $this->assertTrue($listener === $car->getEngine()->getIgnitionListener());
-    }
-
-    public function testGetInjectCallable()
-    {
-        $count   = 0;
-        $subject = new Container();
-        $subject->addAlias(EngineInterface::class, ElectricEngine::class);
-        $subject->inject(EngineInterface::class, function (EngineInterface $engine, IgnitionListener $listener) use (&$count) {
-            $count++;
-            $this->assertTrue($listener instanceof IgnitionListener);
-            $engine->setIgnitionListener($listener);
-            return $engine;
-        });
         $car = $subject->get(Car::class);
-        $listener = $subject->get(IgnitionListener::class);
-        $this->assertTrue($listener === $car->getEngine()->getIgnitionListener());
-        $this->assertEquals(1, $count);
-    }
-
-    public function testGetInjectInvalid()
-    {
-        $this->expectException(ContainerException::class);
-        $this->expectExceptionMessage('Expected interface method name or callable when injecting');
-        $subject = new Container();
-        $subject->addAlias(EngineInterface::class, ElectricEngine::class);
-        $subject->inject(EngineInterface::class, 123);
-        $car      = $subject->get(Car::class);
+        self::assertEquals($fuelPercent, $car->fuelPercent);
     }
 }

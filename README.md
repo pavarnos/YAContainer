@@ -87,20 +87,6 @@ $container->addScalar('maximumPassengers', function (Configuration $config) {
 });
 ```
 
-## Setter injection by interface
-
-`$container->inject(EventDispatcherAware::class, 'setEventDispatcher')` will inject the event dispatcher on every class 
-implementing the interface. All parameters to the method will be autowired for the call.
-
-You can also use a callable. Specify the class you are constructing as the first parameter. It will already be
-stored in the container before your injector is executed.
-
-```php
-$container->inject(SetCurrentUserInterface::class, function (CurrentUserInterface $objectBeingBuilt, Session $session) {
-    $objectBeingBuilt->setCurrentUser($session->getCurrentUser());
-});
-```
-
 ## Factory methods / Callables
 
 For classes that are complicated to build or where the class needs a lot of stuff that nothing else needs, use a factory method.
@@ -116,6 +102,10 @@ For classes that are complicated to build or where the class needs a lot of stuf
 ```
 
 Any interfaces configured for setter injection will be called after the factory has run.
+
+## Setter injection 
+
+Setter injection can be emulated via a factory method.
 
 ## PhpStorm integration
 
@@ -137,6 +127,7 @@ Anything returned by `->get('...')` is internally typehinted as an instance of t
 
 - Maybe add a `forget($name)` method to delete a shared instance from the container
 - or add a flag `sharedByDefault=true` or add a `sharable` array so the container knows which classes to keep and which to forget. 
+- or add an array of regex `neverShare`
 
 # This is NOT a Service Locator
  
