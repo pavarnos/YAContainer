@@ -136,9 +136,21 @@ class Container implements ContainerInterface
     }
 
     /**
+     * Delete any shared instances of $className.
+     * get($className) will return a freshly constructed instance of $className next time you call it.
+     * @param string $name
+     * @return $this
+     */
+    public function forget(string $name): self
+    {
+        unset($this->shared[$name]);
+        return $this;
+    }
+
+    /**
      * Alias must resolve to a real instantiable class in one step. An alias cannot refer to another alias.
      * Aliases only work for class names: they are not used for scalars. If you want to alias a scalar, add it again
-     * with the aliased name
+     * with the aliased name using addScalar()
      * @param string $alias
      * @param string $realName
      * @return self

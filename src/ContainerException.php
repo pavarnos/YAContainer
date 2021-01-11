@@ -3,10 +3,12 @@ declare(strict_types=1);
 
 namespace LSS\YAContainer;
 
-class ContainerException extends \Exception implements \Psr\Container\ContainerExceptionInterface
+use Psr\Container\ContainerExceptionInterface;
+
+class ContainerException extends \Exception implements ContainerExceptionInterface
 {
     /** @var string[] */
-    public array $dependencyChain = [];
+    public $dependencyChain = [];
 
     public function __construct(array $building, string $message = '', int $code = 0, \Exception $previous = null)
     {

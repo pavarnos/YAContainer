@@ -121,9 +121,15 @@ To disable sharing (create a new instance for every object every time)
 $container->setShouldShare(function (string $className): bool { return false; });
 ```
 
-## Ideas for later
+## Forget
 
-- Maybe add a `forget($name)` method to delete a shared instance from the container
+If you need a shared instance most of the time, but for some special reasons occasionally need a fresh instance,
+use `forget()` to forget the current one. The next call to `get()` will create a fresh instance.
+```php
+$car = $container->get(Car::class);
+$container->forget(Car::class);
+$aDifferentCar = $container->get(Car::class);
+```
 
 # This is NOT a Service Locator
  

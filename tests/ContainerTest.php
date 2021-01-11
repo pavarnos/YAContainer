@@ -76,7 +76,7 @@ class ContainerTest extends TestCase
         $subject = new Container();
         // tell the container to build a new Car each time get() is called
         $subject->setShouldShare(
-            function (string $name) {
+            function (string $name): bool {
                 return $name !== Car::class;
             }
         );
@@ -85,6 +85,17 @@ class ContainerTest extends TestCase
         self::assertTrue($car instanceof Car);
         self::assertNotSame($car, $subject->get(Car::class));
         self::assertNotSame($car, $subject->get(Car::class));
+    }
+
+    public function testForget(): void
+    {
+        $subject = new Container();
+        $subject->addAlias(EngineInterface::class, V8Engine::class);
+        $car = $subject->get(Car::class);
+        $subject->forget(Car::class);
+        self::assertNotSame($car, $car2 = $subject->get(Car::class));
+        // subsequent calls will return same instance until you forget it again
+        self::assertSame($car2, $subject->get(Car::class));
     }
 
     /**
