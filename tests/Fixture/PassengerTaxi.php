@@ -36,7 +36,7 @@ class PassengerTaxi
      * @param int                                      $maximumPassengers legally defined system parameter
      * @param int                                      $numberOfSeats
      */
-    public function __construct(EngineInterface $engine, $roadSpeedLimit, $roadSpeedUnit, int $maximumPassengers,
+    public function __construct(EngineInterface $engine, int $roadSpeedLimit, string $roadSpeedUnit, int $maximumPassengers,
         $numberOfSeats = self::DEFAULT_SEATS)
     {
         $this->engine            = $engine;
