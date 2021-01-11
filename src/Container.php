@@ -1,17 +1,19 @@
 <?php
+
 declare(strict_types=1);
 
 namespace LSS\YAContainer;
 
+use Closure;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
+
 use function interface_exists;
 use function is_callable;
-use function is_scalar;
 
 class Container implements ContainerInterface
 {
@@ -45,13 +47,22 @@ class Container implements ContainerInterface
     private $building = [];
 
     /**
-     * @param array<string,mixed> $scalar see addScalar()
-     * @param array<string,string> $alias see addAlias()
+     * @var Closure function(string): bool return true if get() should return a shared instance of a class,
+     * false to built it fresh each time
+     */
+    private $shouldShare;
+
+    /**
+     * @param array<string,mixed>  $scalar see addScalar()
+     * @param array<string,string> $alias  see addAlias()
      */
     public function __construct(array $scalar = [], array $alias = [])
     {
-        $this->alias  = $alias;
-        $this->scalar = $scalar;
+        $this->alias       = $alias;
+        $this->scalar      = $scalar;
+        $this->shouldShare = function (string $name): bool {
+            return true;
+        };
     }
 
     /**
@@ -85,7 +96,9 @@ class Container implements ContainerInterface
             $result = $this->makeClass($name);
         }
 
-        $this->shared[$name] = $result;
+        if (($this->shouldShare)($name)) {
+            $this->shared[$name] = $result;
+        }
 
         unset($this->building[$name]);
         return $result;
@@ -114,7 +127,12 @@ class Container implements ContainerInterface
      */
     public function has($name)
     {
-        return isset($this->shared[$name]) || class_exists($name) || interface_exists($name) || isset($this->alias[$name]) || isset($this->scalar[$name]) || isset($this->factory[$name]);
+        return isset($this->shared[$name])
+            || class_exists($name)
+            || interface_exists($name)
+            || isset($this->alias[$name])
+            || isset($this->scalar[$name])
+            || isset($this->factory[$name]);
     }
 
     /**
@@ -160,6 +178,12 @@ class Container implements ContainerInterface
         return $this;
     }
 
+    public function setShouldShare(Closure $shouldShare): self
+    {
+        $this->shouldShare = $shouldShare;
+        return $this;
+    }
+
     /**
      * @param string $name
      * @return mixed the built class
@@ -183,10 +207,11 @@ class Container implements ContainerInterface
             $arguments = $this->collectArguments($constructorInfo->getParameters());
             // It is faster to call it directly than to use reflection http://stackoverflow.com/a/24648651/117647
             return new $name(...$arguments);
-
         } catch (ReflectionException $exception) {
-            throw new ContainerException($this->building, 'Reflection Exception: Can not build ' . $name, 0,
-                $exception);
+            throw new ContainerException(
+                $this->building, 'Reflection Exception: Can not build ' . $name, 0,
+                $exception
+            );
         }
     }
 

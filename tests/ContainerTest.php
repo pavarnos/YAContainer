@@ -67,8 +67,24 @@ class ContainerTest extends TestCase
         $subject->addAlias(EngineInterface::class, V8Engine::class);
         $car = $subject->get(Car::class);
         self::assertTrue($car instanceof Car);
-        self::assertTrue($car === $subject->get(Car::class),
-                          'should return exact same instance if it was built already');
+        self::assertSame($car, $subject->get(Car::class));
+        self::assertSame($car, $subject->get(Car::class));
+    }
+
+    public function testGetNotShared(): void
+    {
+        $subject = new Container();
+        // tell the container to build a new Car each time get() is called
+        $subject->setShouldShare(
+            function (string $name) {
+                return $name !== Car::class;
+            }
+        );
+        $subject->addAlias(EngineInterface::class, V8Engine::class);
+        $car = $subject->get(Car::class);
+        self::assertTrue($car instanceof Car);
+        self::assertNotSame($car, $subject->get(Car::class));
+        self::assertNotSame($car, $subject->get(Car::class));
     }
 
     /**
@@ -131,11 +147,14 @@ class ContainerTest extends TestCase
         // scalar can be a callable and can take all usual parameters including other scalars
         $callCount         = 0;
         $maximumPassengers = 4;
-        $subject->addScalar('maximumPassengers', function ($roadSpeedLimit) use (&$callCount, $maximumPassengers): int {
-            self::assertEquals(100, $roadSpeedLimit);
-            $callCount++;
-            return $maximumPassengers;
-        });
+        $subject->addScalar(
+            'maximumPassengers',
+            function ($roadSpeedLimit) use (&$callCount, $maximumPassengers): int {
+                self::assertEquals(100, $roadSpeedLimit);
+                $callCount++;
+                return $maximumPassengers;
+            }
+        );
 
         $taxi = $subject->get(PassengerTaxi::class);
         self::assertEquals(1, $callCount);
@@ -158,11 +177,14 @@ class ContainerTest extends TestCase
     {
         $fuelPercent = 75;
         $subject     = new Container();
-        $subject->addFactory(Car::class, function (EngineInterface $engine) use ($fuelPercent): Car {
-            $result = new Car($engine);
-            $result->refuel($fuelPercent);
-            return $result;
-        });
+        $subject->addFactory(
+            Car::class,
+            function (EngineInterface $engine) use ($fuelPercent): Car {
+                $result = new Car($engine);
+                $result->refuel($fuelPercent);
+                return $result;
+            }
+        );
         // factory method can resolve aliases
         $subject->addAlias(EngineInterface::class, ElectricEngine::class);
 

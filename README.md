@@ -48,8 +48,6 @@ The container will automatically build dependencies in the constructor and any r
 For most classes this should work with no further effort.
 For other classes that need extra configuration, you can use aliases, scalar injection and factory methods.
 
-All generated objects are shared by default.
-
 ## Aliases
 
 Constructors should usually depend on interfaces rather than concrete classes. So how do you tell the container which concrete
@@ -90,12 +88,11 @@ $container->addScalar('maximumPassengers', function (Configuration $config) {
 ## Factory methods / Callables
 
 For classes that are complicated to build or where the class needs a lot of stuff that nothing else needs, use a factory.
-The return type of the callable will be used for the `$name` of the created object 
  
  ```php
  $fuelPercent = 75;
  $container = new Container();
- $container->addFactory(function (EngineInterface $engine) use ($fuelPercent): Car {
+ $container->addFactory(Car::class, function (EngineInterface $engine) use ($fuelPercent): Car {
      $result = new Car($engine);
      $result->refuel($fuelPercent);
      return $result;
@@ -108,27 +105,25 @@ Any interfaces configured for setter injection will be called after the factory 
 
 Setter injection can be emulated via a factory method.
 
-## PhpStorm integration
+## Shared instances
 
-[PhpStorm will load metadata from a `.phpstorm.meta.php` file](https://confluence.jetbrains.com/display/PhpStorm/PhpStorm+Advanced+Metadata)
-
+All generated objects are shared by default. This means that each call to `get()` for the same class name will
+return the exact same class instance each time. If you need a different instance each time, provide a function that 
+tells the container which instances to share.
 ```php
-<?php
-namespace PHPSTORM_META
-{
-    override(\Psr\Container\ContainerInterface::get(0), map([0 => '@']));
-}
+$container->setShouldShare(function (string $className): bool { return $className !== Car::class; });
 ```
 
-Anything returned by `->get('...')` is internally typehinted as an instance of the first argument. For example `->get('DateTime')` (or `->get(DateTime::class)`) will be recognized to return a `DateTime` object.
+will build a new `Car` class instance for each `get()` call.
 
-**Note:** you may need to restart your IDE.
+To disable sharing (create a new instance for every object every time) 
+```php
+$container->setShouldShare(function (string $className): bool { return false; });
+```
 
 ## Ideas for later
 
 - Maybe add a `forget($name)` method to delete a shared instance from the container
-- or add a flag `sharedByDefault=true` or add a `sharable` array so the container knows which classes to keep and which to forget. 
-- or add an array of regex `neverShare`
 
 # This is NOT a Service Locator
  
