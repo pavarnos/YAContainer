@@ -24,21 +24,21 @@ use PHPUnit\Framework\TestCase;
 
 class ContainerTest extends TestCase
 {
-    public function testGetNoConstructor()
+    public function testGetNoConstructor(): void
     {
         $subject = new Container();
         self::assertTrue($subject->get(V8Engine::class) instanceof V8Engine);
     }
 
-    public function testGetWithMissingArgument()
+    public function testGetWithMissingArgument(): void
     {
         $this->expectException(ContainerException::class);
-        $this->expectExceptionMessageRegExp('|Can not build .*MissingArgument|');
+        $this->expectExceptionMessageMatches('|Can not build .*MissingArgument|');
         $subject = new Container();
         $subject->get(MissingArgument::class);
     }
 
-    public function testGetNonInstantiable()
+    public function testGetNonInstantiable(): void
     {
         $this->expectException(ContainerException::class);
         $this->expectExceptionMessage('not instantiable');
@@ -46,7 +46,7 @@ class ContainerTest extends TestCase
         $subject->get(EngineInterface::class);
     }
 
-    public function testGetPrivateConstructor()
+    public function testGetPrivateConstructor(): void
     {
         $this->expectException(ContainerException::class);
         $this->expectExceptionMessage('not instantiable');
@@ -54,14 +54,14 @@ class ContainerTest extends TestCase
         $subject->get(PrivateConstructor::class);
     }
 
-    public function testGetClassParameterAlias()
+    public function testGetClassParameterAlias(): void
     {
         $subject = new Container();
         $subject->addAlias(EngineInterface::class, V8Engine::class);
         self::assertTrue($subject->get(Car::class) instanceof Car);
     }
 
-    public function testGetShared()
+    public function testGetShared(): void
     {
         $subject = new Container();
         $subject->addAlias(EngineInterface::class, V8Engine::class);
@@ -76,7 +76,7 @@ class ContainerTest extends TestCase
      * @param string $className
      * @param string $message
      */
-    public function testGetWithCircularDependency($className, $message)
+    public function testGetWithCircularDependency(string $className, string $message): void
     {
         $this->expectException(ContainerException::class);
         $this->expectExceptionMessage($message);
@@ -85,7 +85,7 @@ class ContainerTest extends TestCase
         $subject->get($className);
     }
 
-    public function circularDependency()
+    public function circularDependency(): array
     {
         return [
             'One Level'     => [CircularDependency::class, 'Circular'],
@@ -96,7 +96,7 @@ class ContainerTest extends TestCase
         ];
     }
 
-    public function testHas()
+    public function testHas(): void
     {
         $subject = new Container();
         // can (potentially) make any class that exists
@@ -109,15 +109,17 @@ class ContainerTest extends TestCase
         self::assertFalse($subject->has('NonExistentClass'));
     }
 
-    public function testSet()
+    public function testSet(): void
     {
         $subject = new Container();
         $engine  = new ElectricEngine();
-        $subject->set(ElectricEngine::class, $engine);
-        self::assertTrue($engine === $subject->get(ElectricEngine::class), 'should be same instance');
+        $name    = ElectricEngine::class;
+        $subject->set($name, $engine);
+        self::assertTrue($engine === $subject->get($name), 'should be same instance');
+        self::assertTrue($subject->has($name));
     }
 
-    public function testGetWithScalarArguments()
+    public function testGetWithScalarArguments(): void
     {
         $subject = new Container(
             ['roadSpeedLimit' => $roadSpeedLimit = 100],
@@ -131,6 +133,7 @@ class ContainerTest extends TestCase
         $maximumPassengers = 4;
         $subject->addScalar('maximumPassengers', function ($roadSpeedLimit) use (&$callCount, $maximumPassengers) {
             self::assertEquals(100, $roadSpeedLimit);
+            $callCount++;
             return $maximumPassengers;
         });
 
@@ -143,7 +146,7 @@ class ContainerTest extends TestCase
         self::assertTrue($taxi->engine instanceof ElectricEngine);
     }
 
-    public function testGetWithUnknownScalar()
+    public function testGetWithUnknownScalar(): void
     {
         $this->expectException(ContainerException::class);
         $this->expectExceptionMessage('Scalar value not found');
@@ -151,7 +154,7 @@ class ContainerTest extends TestCase
         $subject->get(MissingScalarArgument::class);
     }
 
-    public function testGetFromFactory()
+    public function testGetFromFactory(): void
     {
         $fuelPercent = 75;
         $subject     = new Container();

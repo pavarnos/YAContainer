@@ -116,7 +116,7 @@ class Container implements ContainerInterface
      */
     public function has($name)
     {
-        return class_exists($name) || interface_exists($name) || isset($this->alias[$name]) || isset($this->scalar[$name]) || isset($this->factory[$name]);
+        return isset($this->shared[$name]) || class_exists($name) || interface_exists($name) || isset($this->alias[$name]) || isset($this->scalar[$name]) || isset($this->factory[$name]);
     }
 
     /**
