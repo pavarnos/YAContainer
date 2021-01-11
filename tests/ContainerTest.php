@@ -131,7 +131,7 @@ class ContainerTest extends TestCase
         // scalar can be a callable and can take all usual parameters including other scalars
         $callCount         = 0;
         $maximumPassengers = 4;
-        $subject->addScalar('maximumPassengers', function ($roadSpeedLimit) use (&$callCount, $maximumPassengers) {
+        $subject->addScalar('maximumPassengers', function ($roadSpeedLimit) use (&$callCount, $maximumPassengers): int {
             self::assertEquals(100, $roadSpeedLimit);
             $callCount++;
             return $maximumPassengers;
@@ -158,7 +158,7 @@ class ContainerTest extends TestCase
     {
         $fuelPercent = 75;
         $subject     = new Container();
-        $subject->addFactory(Car::class, function (EngineInterface $engine) use ($fuelPercent) {
+        $subject->addFactory(Car::class, function (EngineInterface $engine) use ($fuelPercent): Car {
             $result = new Car($engine);
             $result->refuel($fuelPercent);
             return $result;

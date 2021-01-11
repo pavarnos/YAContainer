@@ -12,12 +12,12 @@ class IgnitionListener
     /** @var bool */
     public $started = false;
 
-    public function onStart()
+    public function onStart(): void
     {
         $this->started = true;
     }
 
-    public function onStop()
+    public function onStop(): void
     {
         $this->started = false;
     }

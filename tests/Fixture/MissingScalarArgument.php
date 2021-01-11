@@ -14,7 +14,7 @@ class MissingScalarArgument
      * @param string $unknownScalarValue
      * @param int    $defaultValue
      */
-    public function __construct(string $unknownScalarValue, $defaultValue = 42)
+    public function __construct(string $unknownScalarValue, int $defaultValue = 42)
     {
     }
 }

@@ -46,7 +46,7 @@ This is the quickest way to set up your container with static configuration.
 Ask the container for any autoloaded class by name eg `$container->get(My\\Namespace\\MyClass::class);`. 
 The container will automatically build dependencies in the constructor and any recursive dependencies in _their_ constructors. 
 For most classes this should work with no further effort.
-For other classes that need extra configuration, you can use aliases, scalar injection, setter injection and factory methods.
+For other classes that need extra configuration, you can use aliases, scalar injection and factory methods.
 
 All generated objects are shared by default.
 
@@ -89,12 +89,13 @@ $container->addScalar('maximumPassengers', function (Configuration $config) {
 
 ## Factory methods / Callables
 
-For classes that are complicated to build or where the class needs a lot of stuff that nothing else needs, use a factory method.
+For classes that are complicated to build or where the class needs a lot of stuff that nothing else needs, use a factory.
+The return type of the callable will be used for the `$name` of the created object 
  
  ```php
  $fuelPercent = 75;
  $container = new Container();
- $container->addFactory(Car::class, function (EngineInterface $engine) use ($fuelPercent) {
+ $container->addFactory(function (EngineInterface $engine) use ($fuelPercent): Car {
      $result = new Car($engine);
      $result->refuel($fuelPercent);
      return $result;

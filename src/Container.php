@@ -17,36 +17,36 @@ class Container implements ContainerInterface
 {
     /**
      * All classes are shared by default
-     * @var array class name => class instance
+     * @var array<string,mixed> class name => class instance
      */
     private $shared = [];
 
     /**
      * eg MyFooInterface::class => MyFooImplementation::class
-     * @var array alias name => real name
+     * @var array<string,string> alias name => real name
      */
     private $alias = [];
 
     /**
      * scalar / builtin parameter values
-     * @var array name => value
+     * @var array<string,int|string|float|bool|callable> name => value
      */
     private $scalar = [];
 
     /**
      * a callable that can build this class
-     * @var array class or interface name => callable
+     * @var array<string,callable> class or interface name => callable
      */
     private $factory = [];
 
     /**
-     * @var array a stack of class name => depth for error reporting and to prevent circular dependencies
+     * @var array<string,int> a stack of class name => depth for error reporting and to prevent circular dependencies
      */
     private $building = [];
 
     /**
-     * @param array $scalar see addScalar()
-     * @param array $alias  see addAlias()
+     * @param array<string,mixed> $scalar see addScalar()
+     * @param array<string,string> $alias see addAlias()
      */
     public function __construct(array $scalar = [], array $alias = [])
     {
@@ -59,11 +59,9 @@ class Container implements ContainerInterface
      *
      * @param string $name Identifier of the entry to look for.
      *
-     * @throws NotFoundExceptionInterface  No entry was found for **this** identifier.
-     * @throws ContainerExceptionInterface Error while retrieving the entry.
-     *
      * @return mixed Entry.
-     * @throws \LSS\YAContainer\ContainerException
+     * @throws NotFoundExceptionInterface  No entry was found for **this** identifier.
+     * @throws ContainerExceptionInterface
      */
     public function get($name)
     {
@@ -143,7 +141,8 @@ class Container implements ContainerInterface
      */
     public function addScalar(string $name, $valueOrCallable): self
     {
-        assert(is_scalar($valueOrCallable) || is_callable($valueOrCallable));
+        // assert disabled for phpstan. in php 8 we can have better type declarations so it isn't needed
+        // assert(is_scalar($valueOrCallable) || is_callable($valueOrCallable));
         $this->scalar[$name] = $valueOrCallable;
         return $this;
     }
@@ -164,7 +163,7 @@ class Container implements ContainerInterface
     /**
      * @param string $name
      * @return mixed the built class
-     * @throws \LSS\YAContainer\ContainerException
+     * @throws ContainerException
      */
     private function makeClass(string $name)
     {
@@ -195,7 +194,7 @@ class Container implements ContainerInterface
      * resolve all the arguments for the method and return them
      * @param \ReflectionParameter[] $parameters
      * @return array
-     * @throws \LSS\YAContainer\ContainerException
+     * @throws ContainerException
      */
     private function collectArguments(array $parameters): array
     {
@@ -211,8 +210,8 @@ class Container implements ContainerInterface
                 $result[] = $this->getScalarValue($parameterInfo->getName());
                 continue;
             }
-            $typeHint = $parameterInfo->getClass();
-            $result[] = $this->get($typeHint->getName());
+            // union types will cause some problems here
+            $result[] = $this->get($typeInfo->getName());
         }
         return $result;
     }
@@ -231,7 +230,7 @@ class Container implements ContainerInterface
     /**
      * @param string $name
      * @return mixed
-     * @throws \LSS\YAContainer\ContainerException
+     * @throws ContainerException
      */
     private function getScalarValue(string $name)
     {

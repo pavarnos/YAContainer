@@ -1,0 +1,20 @@
+parameters:
+    tmpDir: ./cache/phpstan
+    level: max
+    checkMissingIterableValueType: false
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - tests/Fixture/*
+    ignoreErrors:
+        # too strict: we don't care
+        - '#Construct empty\(\) is not allowed. Use more strict comparison#'
+        # bug with PSR container standard: interface shoudl extend throwable
+        - '#PHPDoc tag @throws with type Psr\\Container\\ContainerExceptionInterface is not subtype of Throwable#'
+
+includes:
+	- vendor/phpstan/phpstan-phpunit/extension.neon
+	- vendor/phpstan/phpstan-phpunit/rules.neon
+	- vendor/phpstan/phpstan/conf/bleedingEdge.neon
+	- vendor/phpstan/phpstan-strict-rules/rules.neon

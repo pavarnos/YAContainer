@@ -5,9 +5,10 @@ namespace LSS\YAContainer;
 
 class ContainerException extends \Exception implements \Psr\Container\ContainerExceptionInterface
 {
-    public $dependencyChain = [];
+    /** @var string[] */
+    public array $dependencyChain = [];
 
-    public function __construct(array $building, $message = '', $code = 0, \Exception $previous = null)
+    public function __construct(array $building, string $message = '', int $code = 0, \Exception $previous = null)
     {
         $this->dependencyChain = array_flip($building);
         ksort($this->dependencyChain);
