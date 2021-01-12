@@ -99,11 +99,9 @@ For classes that are complicated to build or where the class needs a lot of stuf
  });
 ```
 
-Any interfaces configured for setter injection will be called after the factory has run.
-
 ## Setter injection 
 
-Setter injection can be emulated via a factory method.
+Setter injection can be emulated via a factory method. Call your setters after 
 
 ## Shared instances
 
