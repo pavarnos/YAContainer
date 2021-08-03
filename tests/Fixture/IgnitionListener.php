@@ -9,8 +9,7 @@ namespace LSS\YAContainer\Fixture;
 
 class IgnitionListener
 {
-    /** @var bool */
-    public $started = false;
+    public bool $started = false;
 
     public function onStart(): void
     {

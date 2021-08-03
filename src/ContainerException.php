@@ -8,7 +8,7 @@ use Psr\Container\ContainerExceptionInterface;
 class ContainerException extends \Exception implements ContainerExceptionInterface
 {
     /** @var string[] */
-    public $dependencyChain = [];
+    public array $dependencyChain = [];
 
     public function __construct(array $building, string $message = '', int $code = 0, \Exception $previous = null)
     {

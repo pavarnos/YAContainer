@@ -38,7 +38,7 @@ $aliases = [
     MyFoo::class => MyCachedFoo::class,
     MyBarInterface::class => MyBarImplementation::class
 ];
-$container = new Container($_ENV,$aliases);
+$container = new Container($_ENV, $aliases);
 ```
 
 This is the quickest way to set up your container with static configuration. 

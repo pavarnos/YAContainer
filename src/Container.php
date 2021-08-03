@@ -5,111 +5,118 @@ declare(strict_types=1);
 namespace LSS\YAContainer;
 
 use Closure;
-use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
-use Psr\Container\NotFoundExceptionInterface;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
 
 use function interface_exists;
-use function is_callable;
 
+/**
+ * Limitations:
+ * - we have to use string for $id because a generic container can use any string as an index. Our container is only
+ *   for classes, but the PSR interface is looser than that
+ * - we have to return mixed for the same reason. Our container will usually only hold objects, but the generic PSR
+ *   interface is wider and allows anything
+ */
 class Container implements ContainerInterface
 {
     /**
      * All classes are shared by default
      * @var array<string,mixed> class name => class instance
      */
-    private $shared = [];
+    private array $shared = [];
 
     /**
      * eg MyFooInterface::class => MyFooImplementation::class
-     * @var array<string,string> alias name => real name
+     * @var array<class-string,class-string> alias name => real name
      */
-    private $alias = [];
+    private array $alias = [];
 
     /**
      * scalar / builtin parameter values
-     * @var array<string,int|string|float|bool|callable> name => value
+     * @var array<string,int|string|float|bool|Closure> name => value
      */
-    private $scalar = [];
+    private array $scalar = [];
 
     /**
      * a callable that can build this class
-     * @var array<string,callable> class or interface name => callable
+     * @var array<class-string,Closure> class or interface name => callable
      */
-    private $factory = [];
+    private array $factory = [];
 
     /**
      * @var array<string,int> a stack of class name => depth for error reporting and to prevent circular dependencies
      */
-    private $building = [];
+    private array $building = [];
 
     /**
-     * @var Closure function(string): bool return true if get() should return a shared instance of a class,
+     * @var callable(string): bool $shouldShare return true if get() should return a shared instance of a class,
      * false to built it fresh each time
      */
     private $shouldShare;
 
     /**
-     * @param array<string,mixed>  $scalar see addScalar()
-     * @param array<string,string> $alias  see addAlias()
+     * @param array<string,int|string|float|bool|Closure> $scalar see addScalar()
+     * @param array<class-string,class-string>            $alias  see addAlias()
      */
     public function __construct(array $scalar = [], array $alias = [])
     {
         $this->alias       = $alias;
         $this->scalar      = $scalar;
-        $this->shouldShare = function (string $name): bool {
-            return true;
-        };
+        $this->shouldShare = fn(string $name): bool => true;
     }
 
     /**
      * Finds an entry of the container by its identifier and returns it.
      *
-     * @param string $name Identifier of the entry to look for.
-     *
-     * @return mixed Entry.
-     * @throws NotFoundExceptionInterface  No entry was found for **this** identifier.
-     * @throws ContainerExceptionInterface
+     * @param string $id Identifier of the entry to look for.
+     * @return mixed
+     * @throws ContainerException
      */
-    public function get($name)
+    public function get(string $id): mixed
     {
-        if (isset($this->alias[$name])) {
-            // resolve aliases. Aliases must resolve directly to a concrete class. Recursive resolution does not work
-            $name = $this->alias[$name];
+        if (isset($this->alias[$id])) {
+            // Aliases must resolve directly to a concrete class. Recursive resolution does not work
+            $id = $this->alias[$id];
         }
-        if (isset($this->shared[$name])) {
-            return $this->shared[$name];
+        if (isset($this->shared[$id])) {
+            return $this->shared[$id];
         }
 
         // circular dependency check
-        if (isset($this->building[$name])) {
-            throw new ContainerException($this->building, 'Circular dependency while building ' . $name);
+        if (isset($this->building[$id])) {
+            throw new ContainerException($this->building, 'Circular dependency while building ' . $id);
         }
-        $this->building[$name] = count($this->building);
+        $this->building[$id] = count($this->building);
 
-        if (isset($this->factory[$name])) {
-            $result = $this->runFactory($this->factory[$name]);
-        } else {
-            $result = $this->makeClass($name);
+        try {
+            if (isset($this->factory[$id])) {
+                $result = $this->runFactory($this->factory[$id]);
+            } else {
+                $result = $this->makeClass($id);
+            }
+        } catch (ReflectionException $exception) {
+            throw new ContainerException(
+                $this->building, 'Reflection Exception: Can not build ' . $id, 0,
+                $exception
+            );
         }
 
-        if (($this->shouldShare)($name)) {
-            $this->shared[$name] = $result;
+        if (($this->shouldShare)($id)) {
+            $this->shared[$id] = $result;
         }
 
-        unset($this->building[$name]);
+        unset($this->building[$id]);
         return $result;
     }
 
     /**
      * inject a pre-built class into the container, or replace an existing value (eg for tests)
-     * @param string $name
-     * @param mixed  $classInstance
+     * @param class-string $name
+     * @param mixed        $classInstance
      */
-    public function set(string $name, $classInstance): void
+    public function set(string $name, mixed $classInstance): void
     {
         $this->shared[$name] = $classInstance;
     }
@@ -121,25 +128,24 @@ class Container implements ContainerInterface
      * `has($id)` returning true does not mean that `get($id)` will not throw an exception.
      * It does however mean that `get($id)` will not throw a `NotFoundExceptionInterface`.
      *
-     * @param string $name Identifier of the entry to look for.
-     *
+     * @param string $id Identifier of the entry to look for.
      * @return bool
      */
-    public function has($name)
+    public function has(string $id): bool
     {
-        return isset($this->shared[$name])
-            || class_exists($name)
-            || interface_exists($name)
-            || isset($this->alias[$name])
-            || isset($this->scalar[$name])
-            || isset($this->factory[$name]);
+        return isset($this->shared[$id])
+            || class_exists($id)
+            || interface_exists($id)
+            || isset($this->alias[$id])
+            || isset($this->scalar[$id])
+            || isset($this->factory[$id]);
     }
 
     /**
      * Delete any shared instances of $className.
      * get($className) will return a freshly constructed instance of $className next time you call it.
-     * @param string $name
-     * @return $this
+     * @param class-string $name
+     * @return self
      */
     public function forget(string $name): self
     {
@@ -151,8 +157,8 @@ class Container implements ContainerInterface
      * Alias must resolve to a real instantiable class in one step. An alias cannot refer to another alias.
      * Aliases only work for class names: they are not used for scalars. If you want to alias a scalar, add it again
      * with the aliased name using addScalar()
-     * @param string $alias
-     * @param string $realName
+     * @param class-string $alias
+     * @param class-string $realName
      * @return self
      */
     public function addAlias(string $alias, string $realName): self
@@ -166,10 +172,10 @@ class Container implements ContainerInterface
      * Scalars values are used when the constructor / function parameter has no class type hint and is a scalar value.
      * If a callable, it will be called only once then replaced with its return value.
      * @param string                         $name
-     * @param int|string|float|bool|callable $valueOrCallable
+     * @param Closure|float|bool|int|string $valueOrCallable
      * @return self
      */
-    public function addScalar(string $name, $valueOrCallable): self
+    public function addScalar(string $name, Closure|float|bool|int|string $valueOrCallable): self
     {
         // assert disabled for phpstan. in php 8 we can have better type declarations so it isn't needed
         // assert(is_scalar($valueOrCallable) || is_callable($valueOrCallable));
@@ -180,17 +186,21 @@ class Container implements ContainerInterface
     /**
      * if a class is complicated to build, use a factory method to build it and return the class instance.
      * Injections performed by inject() will still occur: no need to add these to your factory
-     * @param string   $name
-     * @param callable $callable must return a class instance
-     * @return \LSS\YAContainer\Container
+     * @param class-string $name
+     * @param Closure      $callable must return a class instance
+     * @return self
      */
-    public function addFactory(string $name, callable $callable): self
+    public function addFactory(string $name, Closure $callable): self
     {
         $this->factory[$name] = $callable;
         return $this;
     }
 
-    public function setShouldShare(Closure $shouldShare): self
+    /**
+     * @param callable(string): bool $shouldShare
+     * @return $this
+     */
+    public function setShouldShare(callable $shouldShare): self
     {
         $this->shouldShare = $shouldShare;
         return $this;
@@ -199,39 +209,32 @@ class Container implements ContainerInterface
     /**
      * @param string $name
      * @return mixed the built class
-     * @throws ContainerException
+     * @throws ReflectionException|ContainerException
      */
-    private function makeClass(string $name)
+    private function makeClass(string $name): mixed
     {
-        try {
-            $classInfo = new ReflectionClass($name);
-            if (!$classInfo->isInstantiable()) {
-                // is it abstract, an interface, has a private constructor etc
-                throw new ContainerException($this->building, 'Class is not instantiable ' . $name);
-            }
-
-            $constructorInfo = $classInfo->getConstructor();
-            if (empty($constructorInfo)) {
-                // no constructor specified
-                return new $name();
-            }
-
-            $arguments = $this->collectArguments($constructorInfo->getParameters());
-            // It is faster to call it directly than to use reflection http://stackoverflow.com/a/24648651/117647
-            return new $name(...$arguments);
-        } catch (ReflectionException $exception) {
-            throw new ContainerException(
-                $this->building, 'Reflection Exception: Can not build ' . $name, 0,
-                $exception
-            );
+        $classInfo = new ReflectionClass($name);
+        if (!$classInfo->isInstantiable()) {
+            // is it abstract, an interface, has a private constructor etc
+            throw new ContainerException($this->building, 'Class is not instantiable ' . $name);
         }
+
+        $constructorInfo = $classInfo->getConstructor();
+        if (empty($constructorInfo)) {
+            // no constructor specified
+            return new $name();
+        }
+
+        $arguments = $this->collectArguments($constructorInfo->getParameters());
+        // It is faster to call it directly than to use reflection http://stackoverflow.com/a/24648651/117647
+        return new $name(...$arguments);
     }
 
     /**
      * resolve all the arguments for the method and return them
      * @param \ReflectionParameter[] $parameters
      * @return array
-     * @throws ContainerException
+     * @throws ContainerException|ReflectionException
      */
     private function collectArguments(array $parameters): array
     {
@@ -243,21 +246,29 @@ class Container implements ContainerInterface
                 break;
             }
             $typeInfo = $parameterInfo->getType();
-            if (empty($typeInfo) || $typeInfo->isBuiltin()) {
+            if (!($typeInfo instanceof \ReflectionNamedType)) {
+                throw new ContainerException(
+                    $this->building,
+                    'Type is missing or a Union type for parameter ' . $parameterInfo->getName(
+                    )
+                );
+            }
+            if ($typeInfo->isBuiltin()) {
+                // if it is a builtin / scalar type, see if there is a scalar matching that name
                 $result[] = $this->getScalarValue($parameterInfo->getName());
                 continue;
             }
-            // union types will cause some problems here
             $result[] = $this->get($typeInfo->getName());
         }
         return $result;
     }
 
     /**
-     * @param callable $function
+     * @param Closure $function
      * @return object
+     * @throws ContainerException|ReflectionException
      */
-    private function runFactory(callable $function)
+    private function runFactory(Closure $function): object
     {
         $functionInfo = new ReflectionFunction($function);
         $arguments    = $this->collectArguments($functionInfo->getParameters());
@@ -267,15 +278,15 @@ class Container implements ContainerInterface
     /**
      * @param string $name
      * @return mixed
-     * @throws ContainerException
+     * @throws ContainerException|ReflectionException
      */
-    private function getScalarValue(string $name)
+    private function getScalarValue(string $name): mixed
     {
         if (!isset($this->scalar[$name])) {
             throw new ContainerException($this->building, 'Scalar value not found: ' . $name);
         }
         $value = $this->scalar[$name];
-        if (is_callable(($value))) {
+        if ($value instanceof Closure) {
             $functionInfo        = new ReflectionFunction($value);
             $arguments           = $this->collectArguments($functionInfo->getParameters());
             $value               = $value(...$arguments);

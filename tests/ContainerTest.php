@@ -17,8 +17,10 @@ use LSS\YAContainer\Fixture\ElectricEngine;
 use LSS\YAContainer\Fixture\EngineInterface;
 use LSS\YAContainer\Fixture\MissingArgument;
 use LSS\YAContainer\Fixture\MissingScalarArgument;
+use LSS\YAContainer\Fixture\MissingType;
 use LSS\YAContainer\Fixture\PassengerTaxi;
 use LSS\YAContainer\Fixture\PrivateConstructor;
+use LSS\YAContainer\Fixture\UnionType;
 use LSS\YAContainer\Fixture\V8Engine;
 use PHPUnit\Framework\TestCase;
 
@@ -160,7 +162,7 @@ class ContainerTest extends TestCase
         $maximumPassengers = 4;
         $subject->addScalar(
             'maximumPassengers',
-            function ($roadSpeedLimit) use (&$callCount, $maximumPassengers): int {
+            function (int $roadSpeedLimit) use (&$callCount, $maximumPassengers): int {
                 self::assertEquals(100, $roadSpeedLimit);
                 $callCount++;
                 return $maximumPassengers;
@@ -182,6 +184,22 @@ class ContainerTest extends TestCase
         $this->expectExceptionMessage('Scalar value not found');
         $subject = new Container();
         $subject->get(MissingScalarArgument::class);
+    }
+
+    public function testGetWithMissingType(): void
+    {
+        $this->expectException(ContainerException::class);
+        $this->expectExceptionMessageMatches('|Type is missing.*theParameter|');
+        $subject = new Container();
+        $subject->get(MissingType::class);
+    }
+
+    public function testGetWithUnionType(): void
+    {
+        $this->expectException(ContainerException::class);
+        $this->expectExceptionMessageMatches('|Union type.*theParameter|');
+        $subject = new Container();
+        $subject->get(UnionType::class);
     }
 
     public function testGetFromFactory(): void

@@ -9,9 +9,6 @@ namespace LSS\YAContainer\Fixture;
 
 class CircularDependencyA implements CircularDependencyInterface
 {
-    /**
-     * @param \LSS\YAContainer\Fixture\CircularDependencyB $oops
-     */
     public function __construct(CircularDependencyB $oops)
     {
     }

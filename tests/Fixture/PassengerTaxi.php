@@ -11,34 +11,31 @@ class PassengerTaxi
 {
     const DEFAULT_SEATS = 4;
 
-    /**
-     * @var \LSS\YAContainer\Fixture\EngineInterface
-     */
-    public $engine;
+    public EngineInterface $engine;
 
-    /** @var int */
-    public $roadSpeedLimit;
+    public int $roadSpeedLimit;
 
-    /** @var int */
-    public $maximumPassengers;
+    public int $maximumPassengers;
 
-    /** @var int */
-    public $numberOfSeats;
+    public int $numberOfSeats;
 
-    /** @var string */
-    public $roadSpeedUnit;
+    public string $roadSpeedUnit;
 
     /**
      * ScalarArguments constructor.
-     * @param \LSS\YAContainer\Fixture\EngineInterface $engine
-     * @param int                                      $roadSpeedLimit    legally defined system parameter
-     * @param string                                   $roadSpeedUnit     km/h or mph
-     * @param int                                      $maximumPassengers legally defined system parameter
-     * @param int                                      $numberOfSeats
+     * @param EngineInterface $engine
+     * @param int             $roadSpeedLimit    legally defined system parameter
+     * @param string          $roadSpeedUnit     km/h or mph
+     * @param int             $maximumPassengers legally defined system parameter
+     * @param int             $numberOfSeats
      */
-    public function __construct(EngineInterface $engine, int $roadSpeedLimit, string $roadSpeedUnit, int $maximumPassengers,
-        $numberOfSeats = self::DEFAULT_SEATS)
-    {
+    public function __construct(
+        EngineInterface $engine,
+        int $roadSpeedLimit,
+        string $roadSpeedUnit,
+        int $maximumPassengers,
+        int $numberOfSeats = self::DEFAULT_SEATS
+    ) {
         $this->engine            = $engine;
         $this->roadSpeedLimit    = $roadSpeedLimit;
         $this->roadSpeedUnit     = $roadSpeedUnit;

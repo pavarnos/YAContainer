@@ -10,8 +10,8 @@ parameters:
     ignoreErrors:
         # too strict: we don't care
         - '#Construct empty\(\) is not allowed. Use more strict comparison#'
-        # bug with PSR container standard: interface shoudl extend throwable
-        - '#PHPDoc tag @throws with type Psr\\Container\\ContainerExceptionInterface is not subtype of Throwable#'
+        # tangled in types: there is no way to pass a class-string from ContainerInterface::get(string $name)
+        - '#Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects class-string#'
 
 includes:
 	- vendor/phpstan/phpstan-phpunit/extension.neon
