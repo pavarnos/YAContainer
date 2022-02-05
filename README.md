@@ -1,18 +1,19 @@
 # YAContainer: Yet Another Container
 
-A minimal PSR11 Dependency Injection Container for PHP 7.1+
- 
+A minimal Dependency Injection Container for PHP 8.1+
+
 The goals of this project are  
   
+- Storage for objects by class name only: call `get(MyCleverThing::class)`
 - Magic: auto-loading / auto-configuration with a minimum of fuss.
 - Minimalism: No compilation, minimal declaration / configuration in advance, as little code as possible, 
   only the barest necessary features.
-- Performance: Strips out all but essential features. Assumes that you will get everything by 
-  class name eg `get(FooImplementation::class)` so does not need to normalise object names. A decent IDE will ensure 
-  that your class names all have correctly matching case. 
-- Standards Compliance: So it is easy to wrap (eg to track object creation in for php-debugbar) and sub-class to add 
-  extra features in other projects should they be needed.
-- Suitable for larger projects or monolithic applications with a lot of classes but only a few used per request.   
+- Performance: Strips out all but essential features. 
+- Strictly typed: uses phpstan @template so that if you get(T::class) it knows you will receive an object of type T back 
+- Suitable for larger projects or monolithic applications with a lot of classes but only a few used per request.
+- 100% test coverage
+
+This package (or earlier versions of it) have been used in production on many sites for over a decade now. No fuss. It just works.
 
 Why another container when there are already so many that are very good? 
 
@@ -127,6 +128,34 @@ use `forget()` to forget the current one. The next call to `get()` will create a
 $car = $container->get(Car::class);
 $container->forget(Car::class);
 $aDifferentCar = $container->get(Car::class);
+```
+
+# PSR-11 Containers
+
+We deliberately do not implement Psr\Container\ContainerInterface because
+- PSR-11 is not strict enough. It is a generic dictionary designed to hold any mixed thing keyed by any string
+- A number of packages use v1.0 or v2.0 and managing cross dependencies was getting tricky. One fewer dependency is helpful.
+- Wrapping this container in a PSR-11 proxy is trivial: see below
+
+```php
+class Psr11ContainerException extends \InvalidArgumentException implements Psr\Container\ContainerExceptionInterface {}
+
+class Psr11Container implements Psr\Container\ContainerInterface {
+    public __construct(private LSS\Container $wrapped) {}
+    
+    public function get(string $id) {
+        try {
+            return $this->wrapped->get($id);
+        } catch (\Throwable $ex) {
+            throw new Psr11ContainerException('Cannot build ' . $id, 0, $ex);
+        }
+    }
+    
+    public function has(string $id): bool 
+    {
+        return $this->wrapped->has($id);
+    }
+}
 ```
 
 # This is NOT a Service Locator

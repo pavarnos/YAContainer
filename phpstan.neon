@@ -10,8 +10,15 @@ parameters:
     ignoreErrors:
         # too strict: we don't care
         - '#Construct empty\(\) is not allowed. Use more strict comparison#'
-        # tangled in types: there is no way to pass a class-string from ContainerInterface::get(string $name)
-        - '#Parameter \#1 \$objectOrClass of class ReflectionClass constructor expects class-string#'
+        # cant find a workaround
+        - '#Method LSS\\YAContainer\\Container::get\(\) should return T of object but returns object#'
+        # ignore unit test messages
+        -
+            message: '#Call to static method PHPUnit\\Framework\\Assert::assertInstanceOf#'
+            path: tests/
+        -
+            message: '#Parameter \#1.*of method LSS\\YAContainer\\Container::has\(\) expects class-string, string given#'
+            path: tests/
 
 includes:
 	- vendor/phpstan/phpstan-phpunit/extension.neon

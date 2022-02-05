@@ -29,7 +29,7 @@ class ContainerTest extends TestCase
     public function testGetNoConstructor(): void
     {
         $subject = new Container();
-        self::assertTrue($subject->get(V8Engine::class) instanceof V8Engine);
+        self::assertInstanceOf(V8Engine::class, $subject->get(V8Engine::class));
     }
 
     public function testGetWithMissingArgument(): void
@@ -60,7 +60,7 @@ class ContainerTest extends TestCase
     {
         $subject = new Container();
         $subject->addAlias(EngineInterface::class, V8Engine::class);
-        self::assertTrue($subject->get(Car::class) instanceof Car);
+        self::assertInstanceOf(Car::class, $subject->get(Car::class));
     }
 
     public function testGetShared(): void
@@ -68,7 +68,7 @@ class ContainerTest extends TestCase
         $subject = new Container();
         $subject->addAlias(EngineInterface::class, V8Engine::class);
         $car = $subject->get(Car::class);
-        self::assertTrue($car instanceof Car);
+        self::assertInstanceOf(Car::class, $car);
         self::assertSame($car, $subject->get(Car::class));
         self::assertSame($car, $subject->get(Car::class));
     }
@@ -84,7 +84,7 @@ class ContainerTest extends TestCase
         );
         $subject->addAlias(EngineInterface::class, V8Engine::class);
         $car = $subject->get(Car::class);
-        self::assertTrue($car instanceof Car);
+        self::assertInstanceOf(Car::class, $car);
         self::assertNotSame($car, $subject->get(Car::class));
         self::assertNotSame($car, $subject->get(Car::class));
     }
@@ -102,7 +102,7 @@ class ContainerTest extends TestCase
 
     /**
      * @dataProvider circularDependency
-     * @param string $className
+     * @param class-string $className
      * @param string $message
      */
     public function testGetWithCircularDependency(string $className, string $message): void

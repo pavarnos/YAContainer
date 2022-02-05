@@ -1,8 +1,7 @@
 {
     "name": "lss/yacontainer",
-    "description": "Lightweight PSR11 Dependency Injection Container",
+    "description": "Lightweight Dependency Injection Container",
     "keywords": [
-        "psr-11",
         "container",
         "dependency injection"
     ],
@@ -16,14 +15,13 @@
         }
     ],
     "require": {
-        "php": ">=8.0",
-        "psr/container": "^2.0"
+        "php": ">=8.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.1",
-        "phpstan/phpstan": "^0.12",
-        "phpstan/phpstan-phpunit": "^0.12",
-        "phpstan/phpstan-strict-rules": "^0.12"
+        "phpstan/phpstan": "^1",
+        "phpstan/phpstan-phpunit": "^1",
+        "phpstan/phpstan-strict-rules": "^1"
     },
     "autoload": {
         "psr-4": {
@@ -34,9 +32,6 @@
         "psr-4": {
             "LSS\\YAContainer\\": "tests"
         }
-    },
-    "provide": {
-        "psr/container-implementation": "1.0"
     },
     "scripts": {
         "test": [

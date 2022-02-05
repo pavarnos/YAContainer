@@ -5,39 +5,17 @@ declare(strict_types=1);
 namespace LSS\YAContainer;
 
 use Closure;
-use Psr\Container\ContainerInterface;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
 
-use function interface_exists;
-
-/**
- * Limitations:
- * - we have to use string for $id because a generic container can use any string as an index. Our container is only
- *   for classes, but the PSR interface is looser than that
- * - we have to return mixed for the same reason. Our container will usually only hold objects, but the generic PSR
- *   interface is wider and allows anything
- */
 class Container implements ContainerInterface
 {
     /**
-     * All classes are shared by default
-     * @var array<string,mixed> class name => class instance
+     * All classes are shared by default, unless shouldShare() returns false
+     * @var array<class-string,object> class name => class instance
      */
     private array $shared = [];
-
-    /**
-     * eg MyFooInterface::class => MyFooImplementation::class
-     * @var array<class-string,class-string> alias name => real name
-     */
-    private array $alias = [];
-
-    /**
-     * scalar / builtin parameter values
-     * @var array<string,int|string|float|bool|Closure> name => value
-     */
-    private array $scalar = [];
 
     /**
      * a callable that can build this class
@@ -46,12 +24,12 @@ class Container implements ContainerInterface
     private array $factory = [];
 
     /**
-     * @var array<string,int> a stack of class name => depth for error reporting and to prevent circular dependencies
+     * @var array<class-string,int> a stack of class name => depth for error reporting and to prevent circular dependencies
      */
     private array $building = [];
 
     /**
-     * @var callable(string): bool $shouldShare return true if get() should return a shared instance of a class,
+     * @var callable(class-string): bool $shouldShare return true if get() should return a shared instance of a class,
      * false to built it fresh each time
      */
     private $shouldShare;
@@ -60,21 +38,20 @@ class Container implements ContainerInterface
      * @param array<string,int|string|float|bool|Closure> $scalar see addScalar()
      * @param array<class-string,class-string>            $alias  see addAlias()
      */
-    public function __construct(array $scalar = [], array $alias = [])
+    public function __construct(private array $scalar = [], private array $alias = [])
     {
-        $this->alias       = $alias;
-        $this->scalar      = $scalar;
         $this->shouldShare = fn(string $name): bool => true;
     }
 
     /**
      * Finds an entry of the container by its identifier and returns it.
-     *
-     * @param string $id Identifier of the entry to look for.
-     * @return mixed
+     * @template T of object
+     * @param class-string<T> $id class name of the entry to look for.
+     * @return object
+     * @phpstan-return T
      * @throws ContainerException
      */
-    public function get(string $id): mixed
+    public function get(string $id): object
     {
         if (isset($this->alias[$id])) {
             // Aliases must resolve directly to a concrete class. Recursive resolution does not work
@@ -114,9 +91,9 @@ class Container implements ContainerInterface
     /**
      * inject a pre-built class into the container, or replace an existing value (eg for tests)
      * @param class-string $name
-     * @param mixed        $classInstance
+     * @param object       $classInstance
      */
-    public function set(string $name, mixed $classInstance): void
+    public function set(string $name, object $classInstance): void
     {
         $this->shared[$name] = $classInstance;
     }
@@ -128,7 +105,7 @@ class Container implements ContainerInterface
      * `has($id)` returning true does not mean that `get($id)` will not throw an exception.
      * It does however mean that `get($id)` will not throw a `NotFoundExceptionInterface`.
      *
-     * @param string $id Identifier of the entry to look for.
+     * @param class-string $id Identifier of the entry to look for.
      * @return bool
      */
     public function has(string $id): bool
@@ -171,7 +148,7 @@ class Container implements ContainerInterface
     /**
      * Scalars values are used when the constructor / function parameter has no class type hint and is a scalar value.
      * If a callable, it will be called only once then replaced with its return value.
-     * @param string                         $name
+     * @param string                        $name
      * @param Closure|float|bool|int|string $valueOrCallable
      * @return self
      */
@@ -197,8 +174,8 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @param callable(string): bool $shouldShare
-     * @return $this
+     * @param callable(class-string): bool $shouldShare
+     * @return self
      */
     public function setShouldShare(callable $shouldShare): self
     {
@@ -207,11 +184,11 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @param string $name
-     * @return mixed the built class
+     * @param class-string $name
+     * @return object the built class
      * @throws ReflectionException|ContainerException
      */
-    private function makeClass(string $name): mixed
+    private function makeClass(string $name): object
     {
         $classInfo = new ReflectionClass($name);
         if (!$classInfo->isInstantiable()) {
@@ -249,8 +226,7 @@ class Container implements ContainerInterface
             if (!($typeInfo instanceof \ReflectionNamedType)) {
                 throw new ContainerException(
                     $this->building,
-                    'Type is missing or a Union type for parameter ' . $parameterInfo->getName(
-                    )
+                    'Type is missing or has a Union type for parameter ' . $parameterInfo->getName()
                 );
             }
             if ($typeInfo->isBuiltin()) {
@@ -258,7 +234,9 @@ class Container implements ContainerInterface
                 $result[] = $this->getScalarValue($parameterInfo->getName());
                 continue;
             }
-            $result[] = $this->get($typeInfo->getName());
+            /** @var class-string $type for phpstan */
+            $type     = $typeInfo->getName();
+            $result[] = $this->get($type);
         }
         return $result;
     }
@@ -277,10 +255,10 @@ class Container implements ContainerInterface
 
     /**
      * @param string $name
-     * @return mixed
+     * @return int|string|float|bool
      * @throws ContainerException|ReflectionException
      */
-    private function getScalarValue(string $name): mixed
+    private function getScalarValue(string $name): int|string|float|bool
     {
         if (!isset($this->scalar[$name])) {
             throw new ContainerException($this->building, 'Scalar value not found: ' . $name);

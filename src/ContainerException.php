@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 namespace LSS\YAContainer;
 
-use Psr\Container\ContainerExceptionInterface;
-
-class ContainerException extends \Exception implements ContainerExceptionInterface
+class ContainerException extends \Exception
 {
     /** @var string[] */
     public array $dependencyChain = [];
